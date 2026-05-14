@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Student Chat Now</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  background: #111827;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: #1f2937;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.msg {
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 70%;
+}
+
+.me {
+  background: #3b82f6;
+  margin-left: auto;
+}
+
+.other {
+  background: #374151;
+}
+
+.input {
+  display: flex;
+  padding: 10px;
+  gap: 5px;
+  background: #1f2937;
+}
+
+input, button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+}
+
+.user img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h3>🏫 Classrooms</h3>
+  <div onclick="joinRoom('Math')">📘 Math</div>
+  <div onclick="joinRoom('Music')">🎵 Music</div>
+  <div onclick="joinRoom('Science')">🔬 Science</div>
+
+  <hr>
+  <h3>👤 Users</h3>
+  <div id="users"></div>
+</div>
+
+<!-- CHAT -->
+<div class="chat">
+  <header>
+    <img id="myPic" width="35" height="35" style="border-radius:50%">
+    <div id="roomTitle">Student Chat Now</div>
+  </header>
+
+  <div id="messages"></div>
+
+  <div class="input">
+    <input id="text" placeholder="Type message...">
+    <button onclick="sendMsg()">Send</button>
+  </div>
+</div>
+
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+
+// 🔥 YOUR FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyBVJxhArDPuAKV3nGz0nFcIqn_COEGioWc",
+  authDomain: "students-chat-now.firebaseapp.com",
+  projectId: "students-chat-now",
+  storageBucket: "students-chat-now.firebasestorage.app",
+  messagingSenderId: "289780134377",
+  appId: "1:289780134377:web:92359835d594eb11b6db78"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let room = "General";
+let user = null;
+
+// GOOGLE LOGIN
+const provider = new firebase.auth.GoogleAuthProvider();
+
+auth.signInWithPopup(provider).then(res => {
+  user = res.user;
+
+  document.getElementById("myPic").src = user.photoURL;
+
+  db.ref("users/" + user.uid).set({
+    name: user.displayName,
+    photo: user.photoURL
+  });
+
+  loadUsers();
+  loadMessages();
+});
+
+// CHANGE ROOM
+function joinRoom(r){
+  room = r;
+  document.getElementById("roomTitle").innerText = r;
+  loadMessages();
+}
+
+// SEND MESSAGE
+function sendMsg(){
+  const text = document.getElementById("text").value;
+  if(!text) return;
+
+  db.ref("rooms/" + room).push({
+    uid: user.uid,
+    name: user.displayName,
+    photo: user.photoURL,
+    text: text
+  });
+
+  document.getElementById("text").value = "";
+}
+
+// LOAD MESSAGES
+function loadMessages(){
+  db.ref("rooms/" + room).off();
+
+  db.ref("rooms/" + room).on("child_added", snap => {
+    const m = snap.val();
+
+    const div = document.createElement("div");
+    div.className = "msg " + (m.uid === user.uid ? "me" : "other");
+    div.innerHTML = `<b>${m.name}</b><br>${m.text}`;
+
+    document.getElementById("messages").appendChild(div);
+  });
+}
+
+// LOAD USERS
+function loadUsers(){
+  db.ref("users").on("value", snap => {
+    const users = snap.val();
+    const box = document.getElementById("users");
+    box.innerHTML = "";
+
+    for(let id in users){
+      box.innerHTML += `
+        <div class="user">
+          <img src="${users[id].photo}">
+          <span>${users[id].name}</span>
+        </div>`;
+    }
+  });
+}
+
+</script>
+
+</body>
+</html>
